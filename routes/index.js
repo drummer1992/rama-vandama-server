@@ -1,16 +1,18 @@
-const express = require('express');
-const router = express.Router();
-const nodeMailer = require('nodemailer');
-const config = require('../config');
+const express = require('express')
+const router = express.Router()
+const nodeMailer = require('nodemailer')
+const config = require('../config')
 
 const wrap = res => JSON.stringify(res)
 
 router.post('/', (req, res) => {
   const error = new Error()
 
-  !req.body.name && (error.message = 'name is required')
-  !req.body.email && (error.email = 'email is required')
-  !req.body.message && (error.message = 'message is required')
+  const { name, email, message, phone, schedule } = req.body
+
+  !name && (error.message = 'name is required');
+  (!email && !phone) && (error.message = 'email or phone is required')
+  !message && (error.message = 'message is required')
 
   if (error.message) {
     error.status = 400
@@ -18,16 +20,22 @@ router.post('/', (req, res) => {
     return res.end(wrap(error))
   }
 
-  const transporter = nodeMailer.createTransport(config.mail.smtp);
+  const defaultMsg = 'Не заповнив падла 💩'
+
+  const transporter = nodeMailer.createTransport(config.mail.smtp)
   const mailOptions = {
-    from: `"${req.body.name}" <${req.body.email}>`,
-    to: config.mail.smtp.auth.user,
+    from   : `"${name}" <${email}>`,
+    to     : config.mail.smtp.auth.user,
     subject: config.mail.subject,
-    text: `${req.body.message.trim().slice(0, 500)} \n Імейл потенційного качєлі: <${req.body.email}>`
-  };
+    text   : `${message.trim().slice(0, 500)}
+        \n Імейл потенційного качєлі: ${email ? `<${email}>` : defaultMsg}
+        \n Телефон потенційного качєлі: ${phone || defaultMsg} 
+        \n Качєлін розклад: ${schedule || defaultMsg}
+`
+  }
 
   transporter.sendMail(mailOptions, (error, info) => {
-    if(error) {
+    if (error) {
       const e = new Error()
 
       e.message = error.message
@@ -37,7 +45,7 @@ router.post('/', (req, res) => {
     }
 
     return res.end(wrap(info))
-  });
-});
+  })
+})
 
-module.exports = router;
+module.exports = router
